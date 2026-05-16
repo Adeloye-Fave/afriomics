@@ -1,0 +1,491 @@
+# =============================================================================
+# AfriOmics | Multi-Omics Integration Module — Snakemake Workflow
+# =============================================================================
+# Purpose : Integrate metagenomics + metatranscriptomics + metabolomics
+#           into unified multi-omics factors, cross-body-site interaction
+#           networks, and disease modelling — contextualized within Africa
+# Tools   : MOFA+ · DIABLO · MaAsLin2 · SparCC · WGCNA · igraph · ML
+# =============================================================================
+
+configfile: "config/config.yaml"
+
+import pandas as pd
+from pathlib import Path
+
+samples  = pd.read_csv(config["samples"], sep="\t", index_col="sample_id")
+SAMPLES  = samples.index.tolist()
+
+# ---------------------------------------------------------------------------
+# Final targets — everything the integration module produces
+# ---------------------------------------------------------------------------
+rule all:
+    input:
+        # 1. Data harmonisation across omics layers
+        "results/integration/harmonised/metagenomics_matrix.tsv",
+        "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        "results/integration/harmonised/metabolomics_matrix.tsv",
+        "results/integration/harmonised/integration_qc_report.tsv",
+
+        # 2. MOFA+ unsupervised multi-omics factor analysis
+        "results/integration/mofa/mofa_model.hdf5",
+        "results/integration/mofa/factor_weights.tsv",
+        "results/integration/mofa/variance_explained.tsv",
+        "results/integration/mofa/mofa_plots/",
+
+        # 3. DIABLO supervised integration (disease classification)
+        "results/integration/diablo/diablo_model.rds",
+        "results/integration/diablo/selected_features.tsv",
+        "results/integration/diablo/diablo_plots/",
+
+        # 4. Cross-omics pairwise correlations
+        "results/integration/correlations/taxa_metabolite_sparcc.tsv",
+        "results/integration/correlations/rna_metabolite_correlation.tsv",
+        "results/integration/correlations/dna_rna_metabolite_triplot.pdf",
+
+        # 5. Multi-omics interaction network
+        "results/integration/network/multiomics_network.graphml",
+        "results/integration/network/network_modules.tsv",
+        "results/integration/network/network_visualisation.html",
+
+        # 6. Cross-body-site interaction modelling
+        "results/integration/body_site/cross_site_correlation.tsv",
+        "results/integration/body_site/gut_oral_axis.tsv",
+        "results/integration/body_site/gut_vaginal_axis.tsv",
+        "results/integration/body_site/cross_site_network.html",
+
+        # 7. African population structure
+        "results/integration/african_structure/population_stratification.tsv",
+        "results/integration/african_structure/region_specific_signatures.tsv",
+
+        # 8. Disease modelling — gut microbiome × infectious disease
+        "results/integration/disease_model/random_forest_model.rds",
+        "results/integration/disease_model/feature_importance.tsv",
+        "results/integration/disease_model/model_performance.tsv",
+        "results/integration/disease_model/disease_signatures/",
+
+        # 9. Unified final report
+        "results/integration/report/afriomics_integrated_report.html"
+
+
+# =============================================================================
+# STEP 1 — DATA HARMONISATION
+# =============================================================================
+
+rule harmonise_omics_data:
+    """
+    Align all three omics layers to a common sample set and feature space.
+    - Filter samples present in all three layers
+    - Normalise each layer consistently (CLR for microbiome, log for metabolomics)
+    - Handle missing values (imputation or removal)
+    - Export QC report flagging problematic samples
+    """
+    input:
+        metagenomics       = "results/taxonomy/metaphlan4_merged.tsv",
+        metatranscriptomics = "results/metatranscriptomics/humann3/merged_rna_pathabundance.tsv",
+        metabolomics       = "results/metabolomics/xcms/xcms_normalised.tsv",
+        metadata           = config["samples"]
+    output:
+        mg_matrix   = "results/integration/harmonised/metagenomics_matrix.tsv",
+        mt_matrix   = "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        mb_matrix   = "results/integration/harmonised/metabolomics_matrix.tsv",
+        qc_report   = "results/integration/harmonised/integration_qc_report.tsv",
+        sample_list = "results/integration/harmonised/complete_samples.txt"
+    params:
+        min_prevalence  = 0.2,    # Feature must be present in ≥20% of samples
+        min_abundance   = 0.001,  # Minimum relative abundance
+        missing_cutoff  = 0.3     # Remove samples missing >30% of features
+    log: "logs/integration/harmonise.log"
+    conda: "envs/r_analysis.yaml"
+    script: "scripts/harmonise_omics.R"
+
+
+# =============================================================================
+# STEP 2 — MOFA+ UNSUPERVISED MULTI-OMICS FACTOR ANALYSIS
+# =============================================================================
+
+rule mofa_factor_analysis:
+    """
+    MOFA+ (Multi-Omics Factor Analysis v2):
+    Decomposes variation across all three omics layers into shared
+    latent factors that explain cross-omics covariation.
+
+    Each factor may represent:
+    - Disease-associated multi-omics signature
+    - Diet/lifestyle-driven microbiome-metabolome axis
+    - African-specific microbiome functional axis
+    - Body site-specific factor
+
+    Output factors can be correlated with metadata (disease, region, diet)
+    to interpret their biological meaning.
+    """
+    input:
+        mg_matrix = "results/integration/harmonised/metagenomics_matrix.tsv",
+        mt_matrix = "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        mb_matrix = "results/integration/harmonised/metabolomics_matrix.tsv",
+        metadata  = config["samples"]
+    output:
+        model      = "results/integration/mofa/mofa_model.hdf5",
+        weights    = "results/integration/mofa/factor_weights.tsv",
+        factors    = "results/integration/mofa/factor_values.tsv",
+        var_expl   = "results/integration/mofa/variance_explained.tsv",
+        plots_dir  = directory("results/integration/mofa/mofa_plots/")
+    params:
+        n_factors       = config["integration"]["mofa"]["n_factors"],
+        convergence_mode = "fast",
+        seed            = 42
+    log: "logs/integration/mofa.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/mofa_analysis.R"
+
+
+# =============================================================================
+# STEP 3 — DIABLO SUPERVISED MULTI-OMICS INTEGRATION
+# =============================================================================
+
+rule diablo_supervised_integration:
+    """
+    DIABLO (mixOmics): Discriminant Analysis and Biomarker
+    Identification across multi-Omics — supervised integration
+    specifically for disease classification.
+
+    Uses disease groups from metadata to identify the minimal set
+    of features (taxa + transcripts + metabolites) that together
+    best discriminate disease states.
+
+    African disease contexts: malaria vs healthy, HIV vs healthy,
+    TB vs healthy, multiple disease comparison.
+    """
+    input:
+        mg_matrix  = "results/integration/harmonised/metagenomics_matrix.tsv",
+        mt_matrix  = "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        mb_matrix  = "results/integration/harmonised/metabolomics_matrix.tsv",
+        metadata   = config["samples"],
+        mofa_model = "results/integration/mofa/mofa_model.hdf5"
+    output:
+        model        = "results/integration/diablo/diablo_model.rds",
+        features     = "results/integration/diablo/selected_features.tsv",
+        perf_metrics = "results/integration/diablo/performance_metrics.tsv",
+        plots_dir    = directory("results/integration/diablo/diablo_plots/")
+    params:
+        group_col   = config["integration"]["group_col"],
+        n_comp      = 3,
+        folds_cv    = 5,
+        design_val  = 0.1
+    log: "logs/integration/diablo.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/diablo_integration.R"
+
+
+# =============================================================================
+# STEP 4 — CROSS-OMICS PAIRWISE CORRELATIONS
+# =============================================================================
+
+rule taxa_metabolite_sparcc:
+    """
+    SparCC: Sparse Correlations for Compositional data.
+    Avoids spurious correlations caused by compositional constraints
+    (relative abundance data always sums to 100%).
+
+    Finds which microbial taxa are significantly correlated with
+    which metabolites — establishing microbe → metabolite relationships.
+
+    Key African example: Treponema succinifaciens (high in traditional
+    African diet consumers) → succinate production
+    """
+    input:
+        microbiome  = "results/integration/harmonised/metagenomics_matrix.tsv",
+        metabolites = "results/integration/harmonised/metabolomics_matrix.tsv",
+        metadata    = config["samples"]
+    output:
+        sparcc_corr = "results/integration/correlations/taxa_metabolite_sparcc.tsv",
+        sparcc_pval = "results/integration/correlations/taxa_metabolite_pvalues.tsv",
+        heatmap     = "results/integration/correlations/taxa_metabolite_heatmap.pdf"
+    params:
+        n_bootstraps = 100,
+        threshold    = 0.3,
+        alpha        = 0.05
+    log: "logs/integration/sparcc.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/sparcc_correlation.R"
+
+rule rna_metabolite_correlation:
+    """
+    Pearson / Spearman correlations between active gene expression
+    (metatranscriptomics pathways) and measured metabolite levels.
+    This confirms: if a biosynthesis pathway is active in RNA,
+    does the product metabolite increase accordingly?
+    """
+    input:
+        rna_paths   = "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        metabolites = "results/integration/harmonised/metabolomics_matrix.tsv",
+        metadata    = config["samples"]
+    output:
+        correlation = "results/integration/correlations/rna_metabolite_correlation.tsv",
+        scatter_dir = directory("results/integration/correlations/scatter_plots/")
+    log: "logs/integration/rna_metabolite.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/rna_metabolite_correlation.R"
+
+rule triplot:
+    """
+    Three-way visualisation: DNA (who) → RNA (active) → Metabolite (product).
+    Shows the full flow from microbial presence to metabolic output.
+    """
+    input:
+        dna_paths    = "results/taxonomy/metaphlan4_merged.tsv",
+        rna_paths    = "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        metabolites  = "results/integration/harmonised/metabolomics_matrix.tsv",
+        sparcc       = "results/integration/correlations/taxa_metabolite_sparcc.tsv",
+        rna_met      = "results/integration/correlations/rna_metabolite_correlation.tsv"
+    output:
+        triplot = "results/integration/correlations/dna_rna_metabolite_triplot.pdf",
+        sankey  = "results/integration/correlations/dna_rna_metabolite_sankey.html"
+    log: "logs/integration/triplot.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/triplot_visualisation.R"
+
+
+# =============================================================================
+# STEP 5 — MULTI-OMICS INTERACTION NETWORK
+# =============================================================================
+
+rule build_multiomics_network:
+    """
+    Construct a unified multi-omics interaction network where nodes are:
+    - Microbial taxa (from metagenomics)
+    - Active pathways / genes (from metatranscriptomics)
+    - Metabolites (from metabolomics)
+    - Disease phenotype nodes
+
+    Edges represent:
+    - Significant SparCC correlations (taxa ↔ metabolites)
+    - RNA ↔ metabolite correlations
+    - MOFA+ factor loadings (shared variation)
+    - Known KEGG/MetaCyc pathway relationships
+
+    Network is exported as GraphML (Cytoscape-compatible) and
+    as an interactive HTML visualisation (vis.js / pyvis).
+    """
+    input:
+        sparcc_corr  = "results/integration/correlations/taxa_metabolite_sparcc.tsv",
+        sparcc_pval  = "results/integration/correlations/taxa_metabolite_pvalues.tsv",
+        rna_met_corr = "results/integration/correlations/rna_metabolite_correlation.tsv",
+        mofa_weights = "results/integration/mofa/factor_weights.tsv",
+        metadata     = config["samples"]
+    output:
+        network_graphml = "results/integration/network/multiomics_network.graphml",
+        network_tsv     = "results/integration/network/network_edges.tsv",
+        modules         = "results/integration/network/network_modules.tsv",
+        viz_html        = "results/integration/network/network_visualisation.html"
+    params:
+        corr_threshold  = 0.3,
+        pval_threshold  = 0.05,
+        min_module_size = 5
+    log: "logs/integration/network.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/build_multiomics_network.R"
+
+
+# =============================================================================
+# STEP 6 — CROSS-BODY-SITE INTERACTION MODELLING
+# =============================================================================
+
+rule cross_body_site_correlations:
+    """
+    Model how microbiome composition and function at one body site
+    relates to another — the inter-site microbiome crosstalk.
+
+    Key African health axes:
+    - Gut ↔ Oral: periodontal disease drives systemic inflammation
+    - Gut ↔ Vaginal: HIV susceptibility linked to both sites
+    - Gut ↔ Lung: TB immunopathology via gut-lung axis
+    - Gut ↔ Blood: malaria-driven microbial translocation
+
+    Uses samples where multiple body sites are available per individual.
+    """
+    input:
+        mg_matrix  = "results/integration/harmonised/metagenomics_matrix.tsv",
+        mb_matrix  = "results/integration/harmonised/metabolomics_matrix.tsv",
+        metadata   = config["samples"]
+    output:
+        cross_site = "results/integration/body_site/cross_site_correlation.tsv",
+        gut_oral   = "results/integration/body_site/gut_oral_axis.tsv",
+        gut_vag    = "results/integration/body_site/gut_vaginal_axis.tsv",
+        summary    = "results/integration/body_site/cross_site_summary.tsv"
+    log: "logs/integration/cross_site.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/cross_body_site.R"
+
+rule cross_site_network_viz:
+    """
+    Interactive visualisation of body-site interaction networks.
+    Nodes = body sites, Edges = shared taxa or metabolite correlations.
+    Sized by strength of connection, coloured by directionality.
+    """
+    input:
+        cross_site = "results/integration/body_site/cross_site_correlation.tsv",
+        gut_oral   = "results/integration/body_site/gut_oral_axis.tsv",
+        gut_vag    = "results/integration/body_site/gut_vaginal_axis.tsv"
+    output:
+        viz_html   = "results/integration/body_site/cross_site_network.html"
+    log: "logs/integration/cross_site_viz.log"
+    conda: "envs/python_viz.yaml"
+    script: "scripts/cross_site_network_viz.py"
+
+
+# =============================================================================
+# STEP 7 — AFRICAN POPULATION STRUCTURE
+# =============================================================================
+
+rule african_population_stratification:
+    """
+    Identify multi-omics signatures that differ across African regions,
+    ethnic groups, dietary patterns, and urbanisation levels.
+
+    Prevents false disease associations driven by population structure
+    (e.g. confusing a West African diet effect with a malaria effect).
+
+    Uses PERMANOVA + MOFA+ factor correlations with region/ethnicity metadata.
+    """
+    input:
+        mg_matrix  = "results/integration/harmonised/metagenomics_matrix.tsv",
+        mb_matrix  = "results/integration/harmonised/metabolomics_matrix.tsv",
+        mofa_factors = "results/integration/mofa/factor_values.tsv",
+        metadata   = config["samples"],
+        african_ref = config["african_reference"]["db"]
+    output:
+        stratification = "results/integration/african_structure/population_stratification.tsv",
+        region_sigs    = "results/integration/african_structure/region_specific_signatures.tsv",
+        structure_plot = "results/integration/african_structure/population_structure.pdf"
+    log: "logs/integration/african_structure.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/african_population_structure.R"
+
+
+# =============================================================================
+# STEP 8 — DISEASE MODELLING
+# =============================================================================
+
+rule disease_model_random_forest:
+    """
+    Random Forest classifier: predict disease state from integrated
+    multi-omics features (taxa + pathways + metabolites combined).
+
+    Model pipeline:
+    1. Feature selection via MOFA+ factor loadings + Boruta
+    2. Cross-validated Random Forest (5-fold, 3 repeats)
+    3. SHAP values for feature importance interpretation
+    4. ROC curves and AUROC per disease class
+    5. Disease-specific multi-omics signature extraction
+
+    Diseases modelled (African context):
+    - Malaria (P. falciparum) vs healthy
+    - HIV+ vs healthy (ART-naive vs ART-treated)
+    - TB active vs latent vs healthy
+    - Multi-class: all disease states simultaneously
+    """
+    input:
+        mg_matrix    = "results/integration/harmonised/metagenomics_matrix.tsv",
+        mt_matrix    = "results/integration/harmonised/metatranscriptomics_matrix.tsv",
+        mb_matrix    = "results/integration/harmonised/metabolomics_matrix.tsv",
+        mofa_factors = "results/integration/mofa/factor_values.tsv",
+        diablo_feats = "results/integration/diablo/selected_features.tsv",
+        metadata     = config["samples"]
+    output:
+        model        = "results/integration/disease_model/random_forest_model.rds",
+        importance   = "results/integration/disease_model/feature_importance.tsv",
+        performance  = "results/integration/disease_model/model_performance.tsv",
+        roc_plot     = "results/integration/disease_model/roc_curves.pdf",
+        shap_plot    = "results/integration/disease_model/shap_importance.pdf",
+        sigs_dir     = directory("results/integration/disease_model/disease_signatures/")
+    params:
+        group_col    = config["integration"]["group_col"],
+        n_trees      = 1000,
+        n_folds      = 5,
+        n_repeats    = 3,
+        seed         = 42
+    log: "logs/integration/disease_model.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/disease_model.R"
+
+rule disease_signature_profiles:
+    """
+    For each disease, extract its characteristic multi-omics signature:
+    - Top 10 discriminant taxa
+    - Top 10 active pathways (RNA)
+    - Top 10 differentially abundant metabolites
+    - Key microbe → metabolite links
+    - Body site interaction pattern
+    These signatures are exported as publication-ready figures and tables.
+    """
+    input:
+        importance  = "results/integration/disease_model/feature_importance.tsv",
+        sparcc      = "results/integration/correlations/taxa_metabolite_sparcc.tsv",
+        mofa_factors = "results/integration/mofa/factor_values.tsv",
+        metadata    = config["samples"]
+    output:
+        malaria_sig = "results/integration/disease_model/disease_signatures/malaria_signature.tsv",
+        hiv_sig     = "results/integration/disease_model/disease_signatures/hiv_signature.tsv",
+        tb_sig      = "results/integration/disease_model/disease_signatures/tb_signature.tsv",
+        sig_plots   = directory("results/integration/disease_model/disease_signatures/plots/")
+    log: "logs/integration/disease_signatures.log"
+    conda: "envs/r_integration.yaml"
+    script: "scripts/disease_signatures.R"
+
+
+# =============================================================================
+# STEP 9 — UNIFIED INTEGRATED REPORT
+# =============================================================================
+
+rule generate_integrated_report:
+    """
+    Generate the final unified AfriOmics report combining all three
+    omics modules and integration results into a single interactive
+    HTML document. Includes:
+    - Executive summary of multi-omics findings
+    - MOFA+ factor interpretation
+    - Body-site interaction maps
+    - Disease signature panels per disease
+    - African population context
+    - Interactive network visualisations
+    - Methods section with all tool citations
+    - Downloadable results tables
+    """
+    input:
+        mofa_var    = "results/integration/mofa/variance_explained.tsv",
+        mofa_factors = "results/integration/mofa/factor_values.tsv",
+        network     = "results/integration/network/network_modules.tsv",
+        cross_site  = "results/integration/body_site/cross_site_summary.tsv",
+        af_struct   = "results/integration/african_structure/region_specific_signatures.tsv",
+        performance = "results/integration/disease_model/model_performance.tsv",
+        importance  = "results/integration/disease_model/feature_importance.tsv",
+        malaria_sig = "results/integration/disease_model/disease_signatures/malaria_signature.tsv",
+        hiv_sig     = "results/integration/disease_model/disease_signatures/hiv_signature.tsv",
+        tb_sig      = "results/integration/disease_model/disease_signatures/tb_signature.tsv",
+        metadata    = config["samples"]
+    output:
+        report = "results/integration/report/afriomics_integrated_report.html"
+    log: "logs/integration/report.log"
+    conda: "envs/r_integration.yaml"
+    shell:
+        """
+        Rscript -e "
+          rmarkdown::render(
+            'workflow/report/integrated_report.Rmd',
+            output_file = '../../../results/integration/report/afriomics_integrated_report.html',
+            params = list(
+              mofa_var    = '{input.mofa_var}',
+              mofa_factors = '{input.mofa_factors}',
+              network     = '{input.network}',
+              cross_site  = '{input.cross_site}',
+              af_struct   = '{input.af_struct}',
+              performance = '{input.performance}',
+              importance  = '{input.importance}',
+              malaria_sig = '{input.malaria_sig}',
+              hiv_sig     = '{input.hiv_sig}',
+              tb_sig      = '{input.tb_sig}',
+              metadata    = '{input.metadata}'
+            )
+          )
+        " 2> {log}
+        """

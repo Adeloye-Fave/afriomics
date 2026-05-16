@@ -1,0 +1,85 @@
+# =============================================================================
+# AfriOmics | workflow/Snakefile_master
+# =============================================================================
+# Master orchestration file — runs all three omics modules sequentially
+# then triggers the integration and disease modelling pipeline.
+#
+# Usage:
+#   # Run everything end-to-end:
+#   snakemake --use-conda --cores 16 -s workflow/Snakefile_master
+#
+#   # Run only metagenomics:
+#   snakemake --use-conda --cores 16 -s workflow/Snakefile
+#
+#   # Run only integration after all modules complete:
+#   snakemake --use-conda --cores 16 -s workflow/Snakefile_integration
+#
+#   # Dry run (see what will be executed):
+#   snakemake --use-conda --cores 16 -s workflow/Snakefile_master -n
+#
+#   # Generate DAG visualisation:
+#   snakemake -s workflow/Snakefile_master --dag | dot -Tpdf > dag.pdf
+# =============================================================================
+
+configfile: "config/config_complete.yaml"
+
+# ---------------------------------------------------------------------------
+# Master rule: all final outputs from all modules
+# ---------------------------------------------------------------------------
+rule all:
+    input:
+        # === MODULE 1: METAGENOMICS ===
+        "results/taxonomy/metaphlan4_merged.tsv",
+        "results/functional/humann3_merged_pathabundance.tsv",
+        "results/diversity/alpha_diversity.tsv",
+        "results/diversity/beta_diversity_bray.tsv",
+        "results/african_context/comparison_report.tsv",
+        "results/report/metagenomics_report.html",
+
+        # === MODULE 2: METATRANSCRIPTOMICS ===
+        "results/metatranscriptomics/humann3/merged_rna_pathabundance.tsv",
+        "results/metatranscriptomics/deseq2/deseq2_results.tsv",
+        "results/metatranscriptomics/dna_rna_ratio/dna_rna_comparison.tsv",
+        "results/metatranscriptomics/report/metatranscriptomics_report.html",
+
+        # === MODULE 3: METABOLOMICS ===
+        "results/metabolomics/xcms/xcms_normalised.tsv",
+        "results/metabolomics/annotation/merged_annotations.tsv",
+        "results/metabolomics/stats/differential_metabolites.tsv",
+        "results/metabolomics/pathways/enrichment_results.tsv",
+        "results/metabolomics/correlations/maaslin2_results/",
+        "results/metabolomics/report/metabolomics_report.html",
+
+        # === MODULE 4: INTEGRATION ===
+        "results/integration/mofa/mofa_model.hdf5",
+        "results/integration/diablo/selected_features.tsv",
+        "results/integration/network/network_visualisation.html",
+        "results/integration/body_site/cross_site_network.html",
+        "results/integration/african_structure/region_specific_signatures.tsv",
+
+        # === MODULE 5: DISEASE MODELLING ===
+        "results/integration/disease_model/model_performance.tsv",
+        "results/integration/disease_model/feature_importance.tsv",
+        "results/integration/disease_model/roc_curves.pdf",
+
+        # === FINAL INTEGRATED REPORT ===
+        "results/integration/report/afriomics_integrated_report.html"
+
+    message:
+        """
+        ╔══════════════════════════════════════════════════════╗
+        ║           AfriOmics Pipeline Complete!               ║
+        ║                                                      ║
+        ║  All outputs generated. Open the integrated report:  ║
+        ║  results/integration/report/afriomics_integrated...  ║
+        ╚══════════════════════════════════════════════════════╝
+        """
+
+
+# ---------------------------------------------------------------------------
+# Include sub-workflows
+# ---------------------------------------------------------------------------
+include: "Snakefile"                    # Metagenomics
+include: "Snakefile_metatranscriptomics"
+include: "Snakefile_metabolomics"
+include: "Snakefile_integration"

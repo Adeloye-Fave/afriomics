@@ -1,0 +1,54 @@
+---
+title: "AfriOmics — Integrated Multi-Omics Report"
+output:
+  html_document:
+    theme: darkly
+    toc: true
+    toc_float: true
+params:
+  mofa_var:    "results/integration/mofa/variance_explained.tsv"
+  mofa_factors: "results/integration/mofa/factor_values.tsv"
+  network:     "results/integration/network/network_modules.tsv"
+  cross_site:  "results/integration/body_site/cross_site_summary.tsv"
+  af_struct:   "results/integration/african_structure/region_specific_signatures.tsv"
+  performance: "results/integration/disease_model/model_performance.tsv"
+  importance:  "results/integration/disease_model/feature_importance.tsv"
+  malaria_sig: "results/integration/disease_model/disease_signatures/malaria_signature.tsv"
+  hiv_sig:     "results/integration/disease_model/disease_signatures/hiv_signature.tsv"
+  tb_sig:      "results/integration/disease_model/disease_signatures/tb_signature.tsv"
+  metadata:    "config/samples.tsv"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE)
+library(ggplot2); library(dplyr); library(knitr); library(DT)
+```
+
+## Executive Summary
+
+AfriOmics integrated multi-omics analysis complete.
+
+```{r performance}
+if (file.exists(params$performance)) {
+  perf <- read.delim(params$performance)
+  kable(perf, caption="Disease Model Performance")
+}
+```
+
+## MOFA+ Variance Explained
+
+```{r mofa}
+if (file.exists(params$mofa_var)) {
+  var_df <- read.delim(params$mofa_var)
+  kable(var_df)
+}
+```
+
+## Top Disease Features
+
+```{r importance}
+if (file.exists(params$importance)) {
+  imp <- read.delim(params$importance) %>% head(30)
+  datatable(imp)
+}
+```

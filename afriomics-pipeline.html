@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AfriOmics | Multi-Omics Microbiome Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e0c;
+    --surface: #111710;
+    --surface2: #192018;
+    --border: #2a3828;
+    --accent-green: #4aff91;
+    --accent-gold: #f5c842;
+    --accent-red: #ff6b6b;
+    --accent-blue: #5bc4ff;
+    --accent-purple: #c084fc;
+    --text: #e8f0e9;
+    --text-muted: #7a9b7e;
+    --glow: rgba(74,255,145,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background mesh */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 10% 20%, rgba(74,255,145,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 80% at 90% 80%, rgba(245,200,66,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 50% 50%, rgba(91,196,255,0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1300px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 1; }
+
+  /* NAV */
+  nav {
+    border-bottom: 1px solid var(--border);
+    padding: 1.2rem 0;
+    background: rgba(10,14,12,0.85);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  nav .container { display: flex; justify-content: space-between; align-items: center; }
+  .nav-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.3rem;
+    color: var(--accent-green);
+    letter-spacing: -0.02em;
+  }
+  .nav-logo span { color: var(--accent-gold); }
+  .nav-badge {
+    background: rgba(74,255,145,0.1);
+    border: 1px solid rgba(74,255,145,0.3);
+    color: var(--accent-green);
+    font-size: 0.7rem;
+    font-family: 'Space Mono', monospace;
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    letter-spacing: 0.1em;
+  }
+
+  /* HERO */
+  .hero {
+    padding: 5rem 0 4rem;
+    text-align: center;
+  }
+  .hero-tag {
+    display: inline-block;
+    background: rgba(245,200,66,0.1);
+    border: 1px solid rgba(245,200,66,0.3);
+    color: var(--accent-gold);
+    font-size: 0.72rem;
+    font-family: 'Space Mono', monospace;
+    padding: 0.4rem 1rem;
+    border-radius: 4px;
+    letter-spacing: 0.15em;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: clamp(2.8rem, 6vw, 5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent-green);
+  }
+  .hero h1 .gold { color: var(--accent-gold); }
+  .hero-sub {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    max-width: 680px;
+    margin: 0 auto 3rem;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+  .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: var(--accent-green);
+    color: #051008;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.85rem 2rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+    font-family: 'Sora', sans-serif;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(74,255,145,0.3); }
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.85rem 2rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+    font-family: 'Sora', sans-serif;
+  }
+  .btn-outline:hover { border-color: var(--accent-green); color: var(--accent-green); }
+
+  /* STATS */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 5rem;
+  }
+  .stat {
+    background: var(--surface);
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-green);
+    display: block;
+  }
+  .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+  /* SECTION HEADERS */
+  .section-header { margin-bottom: 2.5rem; }
+  .section-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent-green);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+  .section-title {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .section-sub { color: var(--text-muted); margin-top: 0.5rem; font-size: 0.95rem; line-height: 1.6; font-weight: 300; }
+
+  /* PIPELINE FLOW */
+  .pipeline-section { margin-bottom: 5rem; }
+  .pipeline-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .omics-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+    transition: all 0.3s;
+    cursor: pointer;
+    position: relative;
+  }
+  .omics-card:hover { border-color: var(--card-accent); transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+  .omics-card.meta { --card-accent: #4aff91; }
+  .omics-card.transcript { --card-accent: #5bc4ff; }
+  .omics-card.metabol { --card-accent: #f5c842; }
+  .card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .card-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .card-title { font-weight: 700; font-size: 1rem; }
+  .card-subtitle { color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem; }
+  .card-accent-bar {
+    height: 3px;
+    background: var(--card-accent);
+    box-shadow: 0 0 12px var(--card-accent);
+  }
+  .card-body { padding: 1.5rem; }
+  .step-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+  .step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .step-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--card-accent);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    min-width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-tool {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    padding: 0 5px;
+    color: var(--card-accent);
+    display: inline-block;
+  }
+  .card-tools {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+  .tools-label { font-size: 0.68rem; color: var(--text-muted); font-family: 'Space Mono', monospace; letter-spacing: 0.1em; margin-bottom: 0.5rem; text-transform: uppercase; }
+  .tool-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .tool-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-muted);
+  }
+
+  /* INTEGRATION HUB */
+  .integration-section { margin-bottom: 5rem; }
+  .integration-viz {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .integration-viz::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(74,255,145,0.04) 0%, transparent 70%);
+  }
+  .int-center {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 3rem;
+  }
+  .hub-node {
+    background: var(--surface2);
+    border: 2px solid var(--accent-green);
+    border-radius: 16px;
+    padding: 1.5rem 2.5rem;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(74,255,145,0.15);
+    position: relative;
+  }
+  .hub-node::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 17px;
+    background: linear-gradient(135deg, rgba(74,255,145,0.2), transparent);
+    pointer-events: none;
+  }
+  .hub-label { font-weight: 800; font-size: 1.1rem; color: var(--accent-green); }
+  .hub-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem; }
+
+  .int-spokes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .spoke-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    transition: all 0.3s;
+  }
+  .spoke-card:hover { border-color: var(--spoke-color); box-shadow: 0 0 20px rgba(0,0,0,0.4); }
+  .spoke-card.c1 { --spoke-color: #4aff91; }
+  .spoke-card.c2 { --spoke-color: #5bc4ff; }
+  .spoke-card.c3 { --spoke-color: #f5c842; }
+  .spoke-card.c4 { --spoke-color: #c084fc; }
+  .spoke-icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
+  .spoke-title { font-weight: 700; font-size: 0.88rem; margin-bottom: 0.4rem; }
+  .spoke-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+  .spoke-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--spoke-color);
+    display: inline-block;
+    margin-right: 0.4rem;
+    box-shadow: 0 0 6px var(--spoke-color);
+  }
+
+  /* AFRICA CONTEXT */
+  .africa-section { margin-bottom: 5rem; }
+  .africa-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  .africa-map-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .map-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 1.5rem; }
+  .body-sites {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .body-site {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .body-site::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--site-color);
+  }
+  .body-site:hover { border-color: var(--site-color); background: rgba(255,255,255,0.03); }
+  .site-emoji { font-size: 1.2rem; flex-shrink: 0; }
+  .site-info { flex: 1; }
+  .site-name { font-weight: 600; font-size: 0.88rem; }
+  .site-desc { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+  .site-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid var(--site-color);
+    color: var(--site-color);
+    flex-shrink: 0;
+  }
+
+  .africa-context-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+  }
+  .context-items { display: flex; flex-direction: column; gap: 1rem; }
+  .ctx-item {
+    padding: 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    border-left: 3px solid var(--accent-gold);
+  }
+  .ctx-title { font-weight: 600; font-size: 0.88rem; color: var(--accent-gold); margin-bottom: 0.4rem; }
+  .ctx-text { font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; }
+
+  /* DISEASE MODELLING */
+  .disease-section { margin-bottom: 5rem; }
+  .disease-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .disease-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .disease-card:hover { transform: translateY(-3px); border-color: var(--disease-color); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+  .disease-card.d1 { --disease-color: #ff6b6b; }
+  .disease-card.d2 { --disease-color: #f5c842; }
+  .disease-card.d3 { --disease-color: #5bc4ff; }
+  .disease-card.d4 { --disease-color: #c084fc; }
+  .disease-card.d5 { --disease-color: #4aff91; }
+  .disease-card.d6 { --disease-color: #fb923c; }
+  .disease-icon { font-size: 2rem; margin-bottom: 1rem; }
+  .disease-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .disease-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1rem; }
+  .disease-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .disease-bar-fill {
+    height: 100%;
+    background: var(--disease-color);
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+  .disease-stat { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.4rem; font-family: 'Space Mono', monospace; }
+
+  /* PIPELINE FLOW DIAGRAM */
+  .flow-section { margin-bottom: 5rem; }
+  .flow-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem;
+    overflow-x: auto;
+  }
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 1.2rem;
+    min-width: 700px;
+  }
+  .flow-node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+    min-width: 120px;
+    text-align: center;
+    position: relative;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .flow-node:hover { border-color: var(--node-color, var(--accent-green)); box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+  .flow-node .fn-label { font-weight: 600; font-size: 0.78rem; color: var(--text); }
+  .flow-node .fn-tool { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: var(--node-color, var(--accent-green)); margin-top: 0.2rem; }
+  .flow-arrow {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-size: 0.9rem;
+    padding: 0 0.3rem;
+  }
+  .flow-row-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--accent-green);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    min-width: 90px;
+    flex-shrink: 0;
+  }
+  .flow-divider {
+    border: none;
+    border-top: 1px dashed var(--border);
+    margin: 1rem 0;
+  }
+
+  /* ACCESSIBILITY FEATURES */
+  .access-section { margin-bottom: 5rem; }
+  .access-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .access-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .access-icon { font-size: 1.8rem; margin-bottom: 1rem; }
+  .access-title { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.5rem; }
+  .access-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; }
+
+  /* TECH STACK */
+  .tech-section { margin-bottom: 5rem; }
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  .tech-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .tech-category { font-size: 0.72rem; font-family: 'Space Mono', monospace; color: var(--accent-green); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; }
+  .tech-items { display: flex; flex-direction: column; gap: 0.5rem; }
+  .tech-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+  }
+  .tech-item:last-child { border-bottom: none; }
+  .tech-name { font-weight: 600; }
+  .tech-purpose { color: var(--text-muted); font-size: 0.75rem; }
+  .tech-free {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--accent-green);
+    background: rgba(74,255,145,0.1);
+    border: 1px solid rgba(74,255,145,0.2);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+  footer strong { color: var(--accent-green); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.6s ease forwards; }
+  .delay-1 { animation-delay: 0.1s; opacity: 0; }
+  .delay-2 { animation-delay: 0.2s; opacity: 0; }
+  .delay-3 { animation-delay: 0.3s; opacity: 0; }
+
+  @media (max-width: 768px) {
+    .pipeline-grid, .disease-grid, .access-grid, .tech-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .africa-grid { grid-template-columns: 1fr; }
+    .int-spokes { grid-template-columns: repeat(2, 1fr); }
+    .hero h1 { font-size: 2.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="nav-logo">Afri<span>Omics</span></div>
+    <span class="nav-badge">v0.1 · OPEN ACCESS</span>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- HERO -->
+  <section class="hero fade-up">
+    <div class="hero-tag">🌍 Africa-Centred Multi-Omics Microbiome Pipeline</div>
+    <h1>Decode the <em>African</em><br>Microbiome — <span class="gold">Free</span> for All</h1>
+    <p class="hero-sub">
+      An open, accessible pipeline integrating metagenomics, metatranscriptomics, and metabolomics 
+      — contextualized within African human microbiome diversity across gut and other body sites, 
+      and linked to infectious disease modelling.
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary">🚀 Launch Pipeline</button>
+      <button class="btn-outline">📖 Documentation</button>
+      <button class="btn-outline">🐙 GitHub</button>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-row fade-up delay-1">
+    <div class="stat">
+      <span class="stat-num">3</span>
+      <div class="stat-label">Omics Layers Integrated</div>
+    </div>
+    <div class="stat">
+      <span class="stat-num">6+</span>
+      <div class="stat-label">Human Body Sites</div>
+    </div>
+    <div class="stat">
+      <span class="stat-num">100%</span>
+      <div class="stat-label">Free & Open Source</div>
+    </div>
+    <div class="stat">
+      <span class="stat-num">∞</span>
+      <div class="stat-label">Africa-Contextualised</div>
+    </div>
+  </div>
+
+  <!-- PIPELINE SECTION -->
+  <section class="pipeline-section fade-up delay-2">
+    <div class="section-header">
+      <span class="section-tag">// OMICS MODULES</span>
+      <h2 class="section-title">Three Omics, One Pipeline</h2>
+      <p class="section-sub">Each module handles its own data type with free, curated tools — designed for users with minimal bioinformatics experience.</p>
+    </div>
+
+    <div class="pipeline-grid">
+      <!-- METAGENOMICS -->
+      <div class="omics-card meta">
+        <div class="card-accent-bar"></div>
+        <div class="card-header">
+          <div class="card-icon">🧬</div>
+          <div>
+            <div class="card-title">Metagenomics</div>
+            <div class="card-subtitle">WHO is there?</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <ul class="step-list">
+            <li class="step-item"><span class="step-num">01</span><span>Raw read quality check & trimming <span class="step-tool">FastQC + Trimmomatic</span></span></li>
+            <li class="step-item"><span class="step-num">02</span><span>Host DNA removal (human reads) <span class="step-tool">Bowtie2</span></span></li>
+            <li class="step-item"><span class="step-num">03</span><span>Taxonomic classification at species level <span class="step-tool">Kraken2 / MetaPhlAn4</span></span></li>
+            <li class="step-item"><span class="step-num">04</span><span>Functional gene annotation <span class="step-tool">HUMAnN3</span></span></li>
+            <li class="step-item"><span class="step-num">05</span><span>Diversity analysis (alpha & beta) <span class="step-tool">QIIME2</span></span></li>
+            <li class="step-item"><span class="step-num">06</span><span>African reference DB comparison <span class="step-tool">AWI-Gen / MicrobiomeDB</span></span></li>
+          </ul>
+          <div class="card-tools">
+            <div class="tools-label">Free Tools</div>
+            <div class="tool-tags">
+              <span class="tool-tag">FastQC</span>
+              <span class="tool-tag">Kraken2</span>
+              <span class="tool-tag">MetaPhlAn4</span>
+              <span class="tool-tag">HUMAnN3</span>
+              <span class="tool-tag">QIIME2</span>
+              <span class="tool-tag">Bracken</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- METATRANSCRIPTOMICS -->
+      <div class="omics-card transcript">
+        <div class="card-accent-bar" style="background:var(--accent-blue);box-shadow:0 0 12px var(--accent-blue)"></div>
+        <div class="card-header">
+          <div class="card-icon">🔬</div>
+          <div>
+            <div class="card-title">Metatranscriptomics</div>
+            <div class="card-subtitle">WHAT are they doing?</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <ul class="step-list" style="--card-accent:var(--accent-blue)">
+            <li class="step-item"><span class="step-num" style="color:var(--accent-blue)">01</span><span>rRNA depletion & QC <span class="step-tool" style="color:var(--accent-blue)">SortMeRNA</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-blue)">02</span><span>Read alignment to metagenome assembly <span class="step-tool" style="color:var(--accent-blue)">STAR / HISAT2</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-blue)">03</span><span>Active gene expression quantification <span class="step-tool" style="color:var(--accent-blue)">HTSeq / featureCounts</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-blue)">04</span><span>Differential expression analysis <span class="step-tool" style="color:var(--accent-blue)">DESeq2</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-blue)">05</span><span>Pathway & metabolic activity <span class="step-tool" style="color:var(--accent-blue)">HUMAnN3</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-blue)">06</span><span>Cross-compare to metagenomic potential <span class="step-tool" style="color:var(--accent-blue)">R integration</span></span></li>
+          </ul>
+          <div class="card-tools">
+            <div class="tools-label">Free Tools</div>
+            <div class="tool-tags">
+              <span class="tool-tag" style="color:var(--text-muted)">SortMeRNA</span>
+              <span class="tool-tag">STAR</span>
+              <span class="tool-tag">DESeq2</span>
+              <span class="tool-tag">HTSeq</span>
+              <span class="tool-tag">Salmon</span>
+              <span class="tool-tag">edgeR</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- METABOLOMICS -->
+      <div class="omics-card metabol">
+        <div class="card-accent-bar" style="background:var(--accent-gold);box-shadow:0 0 12px var(--accent-gold)"></div>
+        <div class="card-header">
+          <div class="card-icon">⚗️</div>
+          <div>
+            <div class="card-title">Metabolomics</div>
+            <div class="card-subtitle">WHAT do they produce?</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <ul class="step-list" style="--card-accent:var(--accent-gold)">
+            <li class="step-item"><span class="step-num" style="color:var(--accent-gold)">01</span><span>Raw spectral data processing (LC-MS/MS) <span class="step-tool" style="color:var(--accent-gold)">MZmine3</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-gold)">02</span><span>Peak detection, alignment, normalisation <span class="step-tool" style="color:var(--accent-gold)">XCMS</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-gold)">03</span><span>Metabolite annotation & ID <span class="step-tool" style="color:var(--accent-gold)">GNPS / SIRIUS</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-gold)">04</span><span>Statistical analysis & PCA <span class="step-tool" style="color:var(--accent-gold)">MetaboAnalyst</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-gold)">05</span><span>Pathway enrichment mapping <span class="step-tool" style="color:var(--accent-gold)">KEGG / BioCyc</span></span></li>
+            <li class="step-item"><span class="step-num" style="color:var(--accent-gold)">06</span><span>Microbiome-metabolite correlation <span class="step-tool" style="color:var(--accent-gold)">MaAsLin2</span></span></li>
+          </ul>
+          <div class="card-tools">
+            <div class="tools-label">Free Tools</div>
+            <div class="tool-tags">
+              <span class="tool-tag">MZmine3</span>
+              <span class="tool-tag">XCMS</span>
+              <span class="tool-tag">GNPS</span>
+              <span class="tool-tag">MetaboAnalyst</span>
+              <span class="tool-tag">SIRIUS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE FLOW DIAGRAM -->
+  <section class="flow-section">
+    <div class="section-header">
+      <span class="section-tag">// END-TO-END FLOW</span>
+      <h2 class="section-title">How Data Moves Through AfriOmics</h2>
+      <p class="section-sub">From raw sequencing reads and spectral files, through quality control, to integrated multi-omics interpretation and disease modelling.</p>
+    </div>
+    <div class="flow-diagram">
+      <div class="flow-row">
+        <div class="flow-row-label">RAW INPUT</div>
+        <div class="flow-node" style="--node-color:#4aff91"><div class="fn-label">FASTQ Reads</div><div class="fn-tool">Metagenomics</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#5bc4ff"><div class="fn-label">RNA FASTQ</div><div class="fn-tool">Metatranscriptomics</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#f5c842"><div class="fn-label">mzML / mzXML</div><div class="fn-tool">Metabolomics</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#c084fc"><div class="fn-label">Metadata</div><div class="fn-tool">Sample info, body site, disease</div></div>
+      </div>
+      <hr class="flow-divider">
+      <div class="flow-row">
+        <div class="flow-row-label">QC & PROCESS</div>
+        <div class="flow-node" style="--node-color:#4aff91"><div class="fn-label">QC + Trim</div><div class="fn-tool">FastQC + Trimmomatic</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#4aff91"><div class="fn-label">Host Removal</div><div class="fn-tool">Bowtie2</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#4aff91"><div class="fn-label">Taxonomy</div><div class="fn-tool">Kraken2 / MetaPhlAn4</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#4aff91"><div class="fn-label">Gene Functions</div><div class="fn-tool">HUMAnN3</div></div>
+      </div>
+      <hr class="flow-divider">
+      <div class="flow-row">
+        <div class="flow-row-label">INTEGRATION</div>
+        <div class="flow-node" style="--node-color:#c084fc"><div class="fn-label">DIABLO / MOFA+</div><div class="fn-tool">Multi-omics factor analysis</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#c084fc"><div class="fn-label">Co-correlation</div><div class="fn-tool">MaAsLin2 + SparCC</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#c084fc"><div class="fn-label">Network Build</div><div class="fn-tool">WGCNA / igraph</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#c084fc"><div class="fn-label">Africa DB Match</div><div class="fn-tool">AWI-Gen / H3Africa</div></div>
+      </div>
+      <hr class="flow-divider">
+      <div class="flow-row">
+        <div class="flow-row-label">MODELLING</div>
+        <div class="flow-node" style="--node-color:#ff6b6b"><div class="fn-label">Disease Link</div><div class="fn-tool">Random Forest / LogReg</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#ff6b6b"><div class="fn-label">Body Site Compare</div><div class="fn-tool">PERMANOVA</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#ff6b6b"><div class="fn-label">Interactive Report</div><div class="fn-tool">Shiny / Quarto</div></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node" style="--node-color:#ff6b6b"><div class="fn-label">Export & Share</div><div class="fn-tool">HTML / PDF / CSV</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTEGRATION HUB -->
+  <section class="integration-section">
+    <div class="section-header">
+      <span class="section-tag">// MULTI-OMICS INTEGRATION</span>
+      <h2 class="section-title">Connecting the Three Layers</h2>
+      <p class="section-sub">Integration reveals what no single omics layer can — the active metabolic conversation between microbes, their gene expression, and measurable chemical outputs.</p>
+    </div>
+    <div class="integration-viz">
+      <div class="int-center">
+        <div class="hub-node">
+          <div class="hub-label">🔗 AfriOmics Integration Hub</div>
+          <div class="hub-sub">MOFA+ · DIABLO · mixOmics · SparCC</div>
+        </div>
+      </div>
+      <div class="int-spokes">
+        <div class="spoke-card c1">
+          <div class="spoke-icon">🔗</div>
+          <div class="spoke-title"><span class="spoke-dot" style="background:#4aff91;box-shadow:0 0 6px #4aff91"></span>Species ↔ Metabolite</div>
+          <div class="spoke-desc">Correlate which microbial taxa drive specific metabolite production — e.g. butyrate-producing Firmicutes in African gut samples.</div>
+        </div>
+        <div class="spoke-card c2">
+          <div class="spoke-icon">⚡</div>
+          <div class="spoke-title"><span class="spoke-dot" style="background:#5bc4ff;box-shadow:0 0 6px #5bc4ff"></span>Gene Expression ↔ Function</div>
+          <div class="spoke-desc">Map actively transcribed genes to metabolic pathways — distinguishing who CAN do something vs. who IS doing it now.</div>
+        </div>
+        <div class="spoke-card c3">
+          <div class="spoke-icon">🕸️</div>
+          <div class="spoke-title"><span class="spoke-dot" style="background:#f5c842;box-shadow:0 0 6px #f5c842"></span>Cross-Site Network</div>
+          <div class="spoke-desc">Model interactions between body sites — how gut dysbiosis may signal to the oral, vaginal, or nasal microbiome in African populations.</div>
+        </div>
+        <div class="spoke-card c4">
+          <div class="spoke-icon">🤖</div>
+          <div class="spoke-title"><span class="spoke-dot"></span>ML-Based Prediction</div>
+          <div class="spoke-desc">Train classifiers on integrated multi-omics features to predict disease risk, disease state, or treatment response.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AFRICA BODY SITES -->
+  <section class="africa-section">
+    <div class="section-header">
+      <span class="section-tag">// AFRICAN MICROBIOME CONTEXT</span>
+      <h2 class="section-title">Body Sites &amp; African Reference Data</h2>
+      <p class="section-sub">AfriOmics benchmarks your results against curated African microbiome reference datasets — acknowledging the profound diversity within the continent.</p>
+    </div>
+    <div class="africa-grid">
+      <div class="africa-map-card">
+        <div class="map-title">🫁 Human Body Site Modules</div>
+        <div class="body-sites">
+          <div class="body-site" style="--site-color:#4aff91">
+            <span class="site-emoji">🦠</span>
+            <div class="site-info">
+              <div class="site-name">Gut Microbiome</div>
+              <div class="site-desc">Stool samples · Colonocytes · Core focus for infectious disease modelling</div>
+            </div>
+            <span class="site-badge" style="border-color:#4aff91;color:#4aff91">PRIMARY</span>
+          </div>
+          <div class="body-site" style="--site-color:#5bc4ff">
+            <span class="site-emoji">👄</span>
+            <div class="site-info">
+              <div class="site-name">Oral Microbiome</div>
+              <div class="site-desc">Saliva, buccal swabs · Linked to systemic disease in African contexts</div>
+            </div>
+            <span class="site-badge" style="border-color:#5bc4ff;color:#5bc4ff">MODULE</span>
+          </div>
+          <div class="body-site" style="--site-color:#f5c842">
+            <span class="site-emoji">🩺</span>
+            <div class="site-info">
+              <div class="site-name">Vaginal Microbiome</div>
+              <div class="site-desc">BV · HIV risk · Maternal health — African-specific Lactobacillus profiles</div>
+            </div>
+            <span class="site-badge" style="border-color:#f5c842;color:#f5c842">MODULE</span>
+          </div>
+          <div class="body-site" style="--site-color:#c084fc">
+            <span class="site-emoji">👃</span>
+            <div class="site-info">
+              <div class="site-name">Nasal/Respiratory</div>
+              <div class="site-desc">Respiratory infections · TB co-infections prevalent in Sub-Saharan Africa</div>
+            </div>
+            <span class="site-badge" style="border-color:#c084fc;color:#c084fc">MODULE</span>
+          </div>
+          <div class="body-site" style="--site-color:#fb923c">
+            <span class="site-emoji">🩸</span>
+            <div class="site-info">
+              <div class="site-name">Blood / Systemic</div>
+              <div class="site-desc">Circulating metabolites · Translocation markers in malaria / sepsis</div>
+            </div>
+            <span class="site-badge" style="border-color:#fb923c;color:#fb923c">MODULE</span>
+          </div>
+          <div class="body-site" style="--site-color:#ff6b6b">
+            <span class="site-emoji">🧪</span>
+            <div class="site-info">
+              <div class="site-name">Skin Microbiome</div>
+              <div class="site-desc">Neglected tropical diseases · Buruli ulcer · Cutaneous leishmaniasis</div>
+            </div>
+            <span class="site-badge" style="border-color:#ff6b6b;color:#ff6b6b">MODULE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="africa-context-card">
+        <div class="map-title">🌍 African Reference Databases</div>
+        <div class="context-items">
+          <div class="ctx-item">
+            <div class="ctx-title">H3Africa / AWI-Gen Cohort</div>
+            <div class="ctx-text">Pan-African genomic and microbiome dataset spanning West, East, Southern & Central Africa. Integrated as default comparative context in AfriOmics.</div>
+          </div>
+          <div class="ctx-item">
+            <div class="ctx-title">MicrobiomeDB African Subset</div>
+            <div class="ctx-text">Curated microbiome studies from African populations — allows your sample results to be instantly contextualized against known African gut profiles.</div>
+          </div>
+          <div class="ctx-item">
+            <div class="ctx-title">GNPS African Metabolome</div>
+            <div class="ctx-text">Spectral libraries enriched with metabolites relevant to African dietary patterns, including fermented foods, traditional plants, and regional nutrition sources.</div>
+          </div>
+          <div class="ctx-item">
+            <div class="ctx-title">Continent-Aware Diversity Indices</div>
+            <div class="ctx-text">Alpha and beta diversity benchmarks derived specifically from African populations — avoiding bias from predominantly European / North American reference microbiomes.</div>
+          </div>
+          <div class="ctx-item">
+            <div class="ctx-title">Traditional Diet & Lifestyle Metadata</div>
+            <div class="ctx-text">Optional metadata fields for diet type (e.g. fermented cassava, millet porridge), urbanisation level, water source — key confounders in African microbiome research.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DISEASE MODELLING -->
+  <section class="disease-section">
+    <div class="section-header">
+      <span class="section-tag">// DISEASE MODELLING</span>
+      <h2 class="section-title">Gut–Disease Interaction Models</h2>
+      <p class="section-sub">AfriOmics uses integrated multi-omics signatures to model how the gut (and other body site) microbiome interacts with endemic African infectious diseases.</p>
+    </div>
+    <div class="disease-grid">
+      <div class="disease-card d1">
+        <div class="disease-icon">🦟</div>
+        <div class="disease-name">Malaria (P. falciparum)</div>
+        <div class="disease-desc">Model gut microbiome composition shifts during acute vs. chronic malaria; identify metabolites that mediate parasite-host interactions.</div>
+        <div class="disease-bar"><div class="disease-bar-fill" style="width:88%"></div></div>
+        <div class="disease-stat">RELEVANCE: HIGH — Sub-Saharan Africa</div>
+      </div>
+      <div class="disease-card d2">
+        <div class="disease-icon">🦠</div>
+        <div class="disease-name">HIV / AIDS</div>
+        <div class="disease-desc">Track microbial translocation, gut permeability biomarkers, and microbiome-driven immune activation across ART treatment stages.</div>
+        <div class="disease-bar"><div class="disease-bar-fill" style="width:95%"></div></div>
+        <div class="disease-stat">RELEVANCE: CRITICAL — >70% global burden in Africa</div>
+      </div>
+      <div class="disease-card d3">
+        <div class="disease-icon">🫁</div>
+        <div class="disease-name">Tuberculosis (TB)</div>
+        <div class="disease-desc">Identify gut-lung axis signatures in TB patients; correlate metabolomic profiles with treatment response and drug resistance.</div>
+        <div class="disease-bar"><div class="disease-bar-fill" style="width:85%"></div></div>
+        <div class="disease-stat">RELEVANCE: HIGH — 30% global TB in Africa</div>
+      </div>
+      <div class="disease-card d4">
+        <div class="disease-icon">🩺</div>
+        <div class="disease-name">Schistosomiasis</div>
+        <div class="disease-desc">Characterise helminth-microbiome crosstalk and immunomodulatory metabolites — a neglected tropical disease with major African burden.</div>
+        <div class="disease-bar"><div class="disease-bar-fill" style="width:70%"></div></div>
+        <div class="disease-stat">RELEVANCE: HIGH — NTD endemic</div>
+      </div>
+      <div class="disease-card d5">
+        <div class="disease-icon">💧</div>
+        <div class="disease-name">Cholera / Diarrhoeal Disease</div>
+        <div class="disease-desc">Model protective vs. susceptible microbiome configurations; link SCFA production to colonisation resistance in Vibrio cholerae.</div>
+        <div class="disease-bar"><div class="disease-bar-fill" style="width:78%"></div></div>
+        <div class="disease-stat">RELEVANCE: HIGH — WASH-linked</div>
+      </div>
+      <div class="disease-card d6">
+        <div class="disease-icon">🩹</div>
+        <div class="disease-name">Sepsis / Systemic Infection</div>
+        <div class="disease-desc">Integrate gut dysbiosis markers, blood metabolomics, and microbial translocation to predict sepsis severity in African ICU settings.</div>
+        <div class="disease-bar"><div class="disease-bar-fill" style="width:65%"></div></div>
+        <div class="disease-stat">RELEVANCE: MODERATE-HIGH</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCESSIBILITY -->
+  <section class="access-section">
+    <div class="section-header">
+      <span class="section-tag">// ACCESSIBILITY BY DESIGN</span>
+      <h2 class="section-title">Built for Everyone</h2>
+      <p class="section-sub">Designed so that a researcher with a laptop and a dataset can run a full multi-omics pipeline without writing a single line of code — if they choose.</p>
+    </div>
+    <div class="access-grid">
+      <div class="access-card">
+        <div class="access-icon">🖱️</div>
+        <div class="access-title">No-Code GUI Mode</div>
+        <div class="access-desc">Upload your files, click through a guided wizard, and receive a full interactive report. Powered by a Shiny web app deployable locally or via cloud.</div>
+      </div>
+      <div class="access-card">
+        <div class="access-icon">📓</div>
+        <div class="access-title">Jupyter Notebook Workflows</div>
+        <div class="access-desc">Step-by-step notebooks for each module with explanatory text, interactive plots, and modifiable parameters for those learning bioinformatics.</div>
+      </div>
+      <div class="access-card">
+        <div class="access-icon">🐚</div>
+        <div class="access-title">CLI Pipeline (Snakemake)</div>
+        <div class="access-desc">Advanced users get a fully reproducible Snakemake workflow for HPC/cluster execution — runs on local machines, university HPC, or Google Colab.</div>
+      </div>
+      <div class="access-card">
+        <div class="access-icon">☁️</div>
+        <div class="access-title">Cloud-Ready (Free Tiers)</div>
+        <div class="access-desc">Pre-configured for Google Colab, Galaxy (usegalaxy.eu), and GitHub Codespaces — no local software installation needed for basic runs.</div>
+      </div>
+      <div class="access-card">
+        <div class="access-icon">📚</div>
+        <div class="access-title">Contextual Explanations</div>
+        <div class="access-desc">Every result comes with plain-language interpretation, African microbiome context, and links to relevant literature. Not just numbers — meaning.</div>
+      </div>
+      <div class="access-card">
+        <div class="access-icon">🌐</div>
+        <div class="access-title">Multilingual Support (Planned)</div>
+        <div class="access-desc">Interface and documentation planned for French, Swahili, Hausa and Portuguese — to reach researchers across all African linguistic regions.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TECH STACK -->
+  <section class="tech-section">
+    <div class="section-header">
+      <span class="section-tag">// TECHNOLOGY STACK</span>
+      <h2 class="section-title">100% Free, Open-Source Tools</h2>
+      <p class="section-sub">Every component is free and open — no licensing costs, no paywalls, no institutional subscriptions required.</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-category">🧬 Metagenomics</div>
+        <div class="tech-items">
+          <div class="tech-item"><span class="tech-name">FastQC + MultiQC</span><span class="tech-purpose">Quality Control</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">Trimmomatic / Fastp</span><span class="tech-purpose">Read Trimming</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">Kraken2 + Bracken</span><span class="tech-purpose">Taxonomy</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">MetaPhlAn4</span><span class="tech-purpose">Species profiling</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">HUMAnN3</span><span class="tech-purpose">Functional profiling</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">QIIME2</span><span class="tech-purpose">Amplicon + Diversity</span><span class="tech-free">FREE</span></div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-category">🔬 Metatranscriptomics</div>
+        <div class="tech-items">
+          <div class="tech-item"><span class="tech-name">SortMeRNA</span><span class="tech-purpose">rRNA Removal</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">STAR / HISAT2</span><span class="tech-purpose">Alignment</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">HTSeq / featureCounts</span><span class="tech-purpose">Quantification</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">DESeq2 / edgeR</span><span class="tech-purpose">Differential Expression</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">Salmon + tximport</span><span class="tech-purpose">Transcript Quant.</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">clusterProfiler</span><span class="tech-purpose">Pathway Enrichment</span><span class="tech-free">FREE</span></div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-category">⚗️ Metabolomics</div>
+        <div class="tech-items">
+          <div class="tech-item"><span class="tech-name">MZmine3</span><span class="tech-purpose">Peak Detection</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">XCMS (R)</span><span class="tech-purpose">Peak Alignment</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">GNPS</span><span class="tech-purpose">Metabolite Annotation</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">SIRIUS + CSI:FingerID</span><span class="tech-purpose">Structure ID</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">MetaboAnalyst 6.0</span><span class="tech-purpose">Stats + PCA</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">MaAsLin2</span><span class="tech-purpose">Multivariate Assoc.</span><span class="tech-free">FREE</span></div>
+        </div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-category">🔗 Integration + Modelling</div>
+        <div class="tech-items">
+          <div class="tech-item"><span class="tech-name">MOFA+ / mixOmics</span><span class="tech-purpose">Multi-omics factors</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">DIABLO</span><span class="tech-purpose">Supervised integration</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">SparCC / SpiecEasi</span><span class="tech-purpose">Correlation networks</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">Scikit-learn (Python)</span><span class="tech-purpose">ML Models</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">Snakemake</span><span class="tech-purpose">Workflow Engine</span><span class="tech-free">FREE</span></div>
+          <div class="tech-item"><span class="tech-name">R Shiny / Quarto</span><span class="tech-purpose">Interactive Reports</span><span class="tech-free">FREE</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="container">
+    <p>
+      <strong>AfriOmics</strong> · Open Multi-Omics Pipeline for African Microbiome Research ·
+      Built with 🌍 for African scientists · 100% Free & Open Source · MIT License
+    </p>
+    <p style="margin-top:0.5rem;font-size:0.7rem;">
+      Concept framework — proposed for development · Contributions welcome · No affiliation with H3Africa or AWI-Gen required to use
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Animate disease bars on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.querySelectorAll('.disease-bar-fill').forEach(bar => {
+          bar.style.width = bar.getAttribute('style').match(/width:(\d+%)/)?.[1] || '0%';
+        });
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('.disease-section').forEach(el => observer.observe(el));
+
+  // Hover highlight for flow nodes
+  document.querySelectorAll('.flow-node').forEach(node => {
+    node.addEventListener('mouseenter', () => {
+      node.style.background = 'rgba(255,255,255,0.06)';
+    });
+    node.addEventListener('mouseleave', () => {
+      node.style.background = '';
+    });
+  });
+</script>
+
+</body>
+</html>
