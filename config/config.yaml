@@ -1,0 +1,95 @@
+# =============================================================================
+# AfriOmics | config/config.yaml — COMPLETE VERSION
+# =============================================================================
+# All three omics modules + integration + disease modelling
+# Edit paths to match your environment
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# SAMPLE SHEET
+# ---------------------------------------------------------------------------
+samples: "config/samples.tsv"
+
+# ---------------------------------------------------------------------------
+# METAGENOMICS
+# ---------------------------------------------------------------------------
+trimmomatic:
+  adapters:      "resources/adapters/TruSeq3-PE.fa"
+  leading:       3
+  trailing:      3
+  minlen:        36
+  sliding_window: "4:15"
+
+host_genome_index: "resources/indexes/human_GRCh38"
+
+kraken2:
+  db:         "resources/kraken2_db/PlusPF"
+  confidence: 0.1
+
+bracken:
+  read_length: 150
+  level:       "S"
+  threshold:   10
+
+metaphlan4:
+  db:    "resources/metaphlan4_db"
+  index: "mpa_vJun23_CHOCOPhlAnSGB_202403"
+
+humann3:
+  nucleotide_db: "resources/humann3/nucleotide/chocophlan"
+  protein_db:    "resources/humann3/protein/uniref90_diamond"
+
+african_reference:
+  db:        "resources/african_reference/awigen_metaphlan_profiles.tsv"
+  body_site: "gut"
+  region:    "all"
+
+# ---------------------------------------------------------------------------
+# METATRANSCRIPTOMICS
+# ---------------------------------------------------------------------------
+sortmerna:
+  db: "resources/sortmerna_db/smr_v4.3_sensitive_db.fasta"
+
+metatranscriptomics:
+  star_index:      "resources/star_index"
+  annotation_gff:  "resources/metagenome_assembly/annotation.gff"
+  pathway_db:      "resources/pathway_dbs/metacyc_kegg_combined.tsv"
+  group_col:       "disease"
+  reference_level: "healthy"
+
+# ---------------------------------------------------------------------------
+# METABOLOMICS
+# ---------------------------------------------------------------------------
+metabolomics:
+  mzmine3_batch:  "config/mzmine3_batch.xml"
+  polarity:       "positive"        # positive | negative | both
+  ppm_error:      10                # mass accuracy in ppm
+  rt_window:      30                # retention time tolerance (seconds)
+  ms2_tolerance:  0.02              # MS2 fragment tolerance (Da)
+  adduct:         "[M+H]+"          # primary adduct
+  sirius_path:    "sirius"          # path to SIRIUS executable
+  african_food_db: "resources/african_reference/african_food_metabolome.tsv"
+  group_col:      "disease"
+
+# ---------------------------------------------------------------------------
+# INTEGRATION
+# ---------------------------------------------------------------------------
+integration:
+  group_col: "disease"
+  mofa:
+    n_factors:        10
+    convergence_mode: "fast"   # fast | medium | slow
+    seed:             42
+
+# ---------------------------------------------------------------------------
+# RESOURCES
+# ---------------------------------------------------------------------------
+resources:
+  max_threads:   16
+  max_memory_mb: 64000
+  tmpdir:        "/tmp"
+
+output:
+  dir:                 "results"
+  keep_intermediates:  false
+  compress_outputs:    true
